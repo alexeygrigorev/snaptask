@@ -195,3 +195,194 @@ def test_capture_batch_persistence_and_retry(base_url, tmp_path):
             "PASS: no premature tasks, two-photo grouping, persistent drafts after reload, failed upload retry without duplicate task/files, token/webhook creation, mobile layout, no browser errors"
         )
         browser.close()
+
+
+def test_inbox_polls_preserve_photos_and_apply_task_changes(base_url):
+    first = {
+        "id": "task1",
+        "title": "Whiteboard notes",
+        "notes": "Make a plan",
+        "status": "todo",
+        "files": [{"id": "file1", "name": "board.png", "content_type": "image/png"}],
+    }
+    second = {
+        "id": "task2",
+        "title": "Another task",
+        "notes": "",
+        "status": "todo",
+        "files": [],
+    }
+    state.update(
+        tasks={"first": first, "second": second},
+        creates=0,
+        reserves={},
+        fail=False,
+        tokens=[],
+        hooks=[],
+    )
+    with sync_playwright() as p:
+        if not Path(p.chromium.executable_path).exists():
+            pytest.skip("Install Playwright Chromium to run web tests")
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(service_workers="block")
+        page = context.new_page()
+        page.clock.install()
+        calls = {"tasks": 0, "signed_urls": 0, "images": 0, "navigations": 0}
+
+        def counted_mock(route):
+            path = urlparse(route.request.url).path
+            if path == "/api/tasks":
+                calls["tasks"] += 1
+            elif "/files/" in path:
+                calls["signed_urls"] += 1
+            elif path == "/mockphoto":
+                calls["images"] += 1
+            mock(route)
+
+        page.route("**/api/**", counted_mock)
+        page.route("**/mockphoto", counted_mock)
+        page.on(
+            "framenavigated",
+            lambda frame: calls.__setitem__(
+                "navigations", calls["navigations"] + (frame == page.main_frame)
+            ),
+        )
+        page.goto(base_url)
+        page.wait_for_function(
+            "document.querySelector('.task-image img')?.naturalWidth > 0"
+        )
+        page.evaluate("""() => {
+            window.originalPhoto = document.querySelector('.task-image img');
+            window.originalCard = window.originalPhoto.closest('.task-card');
+            window.otherCard = document.querySelectorAll('.task-card')[1];
+        }""")
+        baseline = dict(calls)
+
+        # Exercise the actual scheduled ten-second refresh twice, not a direct renderer call.
+        for tick in range(1, 3):
+            page.clock.fast_forward(10000)
+            page.wait_for_function("() => tasksRequest === null")
+            assert calls["tasks"] == baseline["tasks"] + tick
+            assert page.evaluate(
+                "window.originalPhoto === document.querySelector('.task-image img')"
+            )
+            assert page.evaluate(
+                "window.originalCard === document.querySelector('.task-card')"
+            )
+            assert calls["signed_urls"] == baseline["signed_urls"]
+            assert calls["images"] == baseline["images"]
+            assert calls["navigations"] == baseline["navigations"]
+
+        first.update(status="done", title="Plan complete", notes="Updated by an agent")
+        page.clock.fast_forward(10000)
+        page.wait_for_selector(".status.done")
+        assert page.locator(".task-card h3").first.inner_text() == "Plan complete"
+        assert page.locator(".task-notes").first.inner_text() == "Updated by an agent"
+        assert page.evaluate(
+            "window.originalPhoto === document.querySelector('.task-image img')"
+        )
+        assert calls["images"] == baseline["images"]
+        assert calls["signed_urls"] == baseline["signed_urls"]
+
+        state["tasks"] = {"second": second, "first": first}
+        page.clock.fast_forward(10000)
+        page.wait_for_function(
+            "window.otherCard === document.querySelector('.task-card')"
+        )
+        assert page.evaluate(
+            "window.originalPhoto === document.querySelector('.task-image img')"
+        )
+        assert calls["images"] == baseline["images"]
+        assert calls["signed_urls"] == baseline["signed_urls"]
+
+        page.click("#connections-toggle")
+        page.fill("#token-name", "Polling test agent")
+        page.click("#token-form button")
+        page.wait_for_selector("#token-secret:not([hidden])")
+        page.wait_for_function(
+            "document.querySelector('#token-list').textContent.includes('Polling test agent')"
+        )
+        assert "not defined" not in page.inner_text("#toast")
+        count_before_return = calls["tasks"]
+        page.click("#back-capture")
+        page.wait_for_function("() => tasksRequest === null")
+        assert calls["tasks"] == count_before_return + 1
+        assert calls["signed_urls"] == baseline["signed_urls"]
+        assert calls["images"] == baseline["images"]
+        page.clock.fast_forward(10000)
+        page.wait_for_function("() => tasksRequest === null")
+        assert calls["tasks"] == count_before_return + 2
+        assert page.evaluate(
+            "window.originalPhoto === document.querySelector('.task-image img')"
+        )
+        browser.close()
+
+
+def test_preview_recovers_after_transient_url_failure(base_url):
+    state.update(
+        tasks={
+            "first": {
+                "id": "task1",
+                "title": "Retry preview",
+                "status": "todo",
+                "notes": "",
+                "files": [
+                    {"id": "file1", "name": "board.png", "content_type": "image/png"}
+                ],
+            }
+        },
+        tokens=[],
+        hooks=[],
+    )
+    with sync_playwright() as p:
+        if not Path(p.chromium.executable_path).exists():
+            pytest.skip("Install Playwright Chromium to run web tests")
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page(service_workers="block")
+        page.clock.install()
+        calls = {"signed_urls": 0, "images": 0}
+
+        def transient_mock(route):
+            path = urlparse(route.request.url).path
+            if "/files/" in path:
+                calls["signed_urls"] += 1
+                if calls["signed_urls"] == 1:
+                    return route.fulfill(
+                        status=503,
+                        content_type="application/json",
+                        body='{"error":"Temporary error"}',
+                    )
+            elif path == "/mockphoto":
+                calls["images"] += 1
+                # Also exercise an expired/failed image URL, after a successful URL API call.
+                if calls["images"] == 1:
+                    return route.fulfill(status=403, body="Expired image URL")
+            mock(route)
+
+        page.route("**/api/**", transient_mock)
+        page.route("**/mockphoto", transient_mock)
+        page.goto(base_url)
+        page.wait_for_selector(".task-card")
+        page.wait_for_function("() => taskCards.get('task1').preview === null")
+        assert calls["signed_urls"] == 1
+        page.clock.fast_forward(10000)
+        page.wait_for_function(
+            "() => tasksRequest === null && taskCards.get('task1').preview === null"
+        )
+        assert calls["signed_urls"] == 2
+        assert calls["images"] == 1
+        page.clock.fast_forward(10000)
+        page.wait_for_function(
+            "document.querySelector('.task-image img')?.naturalWidth > 0"
+        )
+        assert calls == {"signed_urls": 3, "images": 2}
+        page.evaluate(
+            "window.recoveredPhoto = document.querySelector('.task-image img')"
+        )
+        page.clock.fast_forward(10000)
+        page.wait_for_function("() => tasksRequest === null")
+        assert calls == {"signed_urls": 3, "images": 2}
+        assert page.evaluate(
+            "window.recoveredPhoto === document.querySelector('.task-image img')"
+        )
+        browser.close()

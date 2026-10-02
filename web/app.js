@@ -72,7 +72,7 @@ $('token-form').addEventListener('submit', async (event) => {
     const data = await api('/api/tokens', { method: 'POST', body: JSON.stringify({ name: $('token-name').value.trim() }) });
     if (!data.token) throw new Error('The server did not return a token.');
     secret('token-secret', 'Save this token. You will not see it again.', data.token);
-    $('token-name').value = ''; await initializeCapture(user);
+    $('token-name').value = '';
     await loadConnections();
   } catch (error) { toast(error.message); } finally { button.disabled = false; }
 });
@@ -218,48 +218,97 @@ async function sendBatch() {
     if (draft) $('batch-status').textContent = draft.taskId ? 'Your batch is saved. Tap Retry to finish sending it.' : 'Your batch is saved. Tap Ready to try again.';
   }
 }
-async function loadTasks() {
-  try {
-    const data = await api('/api/tasks');
-    const tasks = (data.tasks || []).filter((task) => task.status !== 'uploading');
-    $('empty').hidden = tasks.length > 0; $('tasks').replaceChildren();
-    $('live-label').textContent = 'Live queue';
-    for (const task of tasks.slice(0, 12)) {
-      const card = document.createElement('article'); card.className = 'task-card';
-      const body = document.createElement('div'); body.className = 'task-body';
-      const meta = document.createElement('div'); meta.className = 'task-meta';
-      const status = document.createElement('span'); status.className = `status ${task.status}`; status.textContent = ({ todo: 'To do', claimed: 'In progress', done: 'Done' })[task.status] || task.status;
-      const count = document.createElement('span'); count.textContent = `${(task.files || []).length} photos`;
-      meta.append(status, count);
-      const title = document.createElement('h3'); title.textContent = task.title;
-      const notes = document.createElement('p'); notes.className = 'task-notes'; notes.textContent = task.notes || 'Ready for your agent.';
-      const id = document.createElement('div'); id.className = 'task-bottom task-id'; id.textContent = `Task ${task.id}`;
-      body.append(meta, title, notes, id);
-      const firstPhoto = (task.files || []).find((file) => file.content_type?.startsWith('image/'));
-      if (firstPhoto) {
-        const preview = document.createElement('div'); preview.className = 'task-image';
-        const image = document.createElement('img'); image.alt = task.title; image.loading = 'lazy';
-        preview.append(image); card.append(preview);
-        api(`/api/tasks/${encodeURIComponent(task.id)}/files/${encodeURIComponent(firstPhoto.id)}`).then((data) => { image.src = data.download_url; }).catch(() => { preview.remove(); });
-      }
-      if ((task.files || []).length) {
-        const files = document.createElement('div'); files.className = 'task-files';
-        for (const file of task.files) {
-          const button = document.createElement('button'); button.className = 'text-link'; button.textContent = file.name || 'Open photo';
-          button.addEventListener('click', async () => {
-            button.disabled = true;
-            try {
-              const data = await api(`/api/tasks/${encodeURIComponent(task.id)}/files/${encodeURIComponent(file.id)}`);
-              const link = document.createElement('a'); link.href = data.download_url; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.click();
-            } catch (error) { toast(error.message); } finally { button.disabled = false; }
-          });
-          files.append(button);
-        }
-        body.append(files);
-      }
-      card.append(body); $('tasks').append(card);
+const taskCards = new Map();
+let tasksRequest = null, taskPollTimer = null;
+function updateTaskCard(task) {
+  let entry = taskCards.get(task.id);
+  if (!entry) {
+    const card = document.createElement('article'); card.className = 'task-card';
+    const body = document.createElement('div'); body.className = 'task-body';
+    const meta = document.createElement('div'); meta.className = 'task-meta';
+    const status = document.createElement('span');
+    const count = document.createElement('span'); meta.append(status, count);
+    const title = document.createElement('h3');
+    const notes = document.createElement('p'); notes.className = 'task-notes';
+    const id = document.createElement('div'); id.className = 'task-bottom task-id'; id.textContent = `Task ${task.id}`;
+    body.append(meta, title, notes, id); card.append(body);
+    entry = { card, body, status, count, title, notes, previewId: null, preview: null, files: null, filesSignature: null };
+    taskCards.set(task.id, entry);
+  }
+  // Update individual fields without detaching the image, even when an agent changes status.
+  const statusText = ({ todo: 'To do', claimed: 'In progress', done: 'Done' })[task.status] || task.status;
+  if (entry.status.textContent !== statusText) entry.status.textContent = statusText;
+  if (entry.status.className !== `status ${task.status}`) entry.status.className = `status ${task.status}`;
+  const countText = `${(task.files || []).length} photos`;
+  if (entry.count.textContent !== countText) entry.count.textContent = countText;
+  if (entry.title.textContent !== task.title) entry.title.textContent = task.title;
+  const notesText = task.notes || 'Ready for your agent.';
+  if (entry.notes.textContent !== notesText) entry.notes.textContent = notesText;
+  const firstPhoto = (task.files || []).find((file) => file.content_type?.startsWith('image/'));
+  if (entry.previewId !== (firstPhoto?.id || null)) {
+    entry.preview?.remove(); entry.preview = null; entry.previewId = firstPhoto?.id || null;
+    if (firstPhoto) {
+      const preview = document.createElement('div'); preview.className = 'task-image';
+      const image = document.createElement('img'); image.alt = task.title; image.loading = 'lazy';
+      preview.append(image); entry.card.prepend(preview); entry.preview = preview;
+      const invalidatePreview = () => {
+        if (entry.preview !== preview) return;
+        preview.remove(); entry.preview = null; entry.previewId = null;
+      };
+      // Retry failed URL requests or expired lazy-image URLs on the next normal poll.
+      image.addEventListener('error', invalidatePreview);
+      // A signed URL is needed only when the attachment changes, not for each inbox poll.
+      api(`/api/tasks/${encodeURIComponent(task.id)}/files/${encodeURIComponent(firstPhoto.id)}`).then((data) => {
+        if (entry.preview === preview) image.src = data.download_url;
+      }).catch(invalidatePreview);
     }
-  } catch (error) { $('live-label').textContent = 'Reconnecting'; if (!$('tasks').children.length) toast(error.message); }
+  } else if (entry.preview) {
+    const image = entry.preview.querySelector('img');
+    if (image.alt !== task.title) image.alt = task.title;
+  }
+  const filesSignature = JSON.stringify((task.files || []).map((file) => [file.id, file.name]));
+  if (filesSignature !== entry.filesSignature) {
+    entry.files?.remove(); entry.files = null; entry.filesSignature = filesSignature;
+    if ((task.files || []).length) {
+      const files = document.createElement('div'); files.className = 'task-files';
+      for (const file of task.files) {
+        const button = document.createElement('button'); button.className = 'text-link'; button.textContent = file.name || 'Open photo';
+        button.addEventListener('click', async () => {
+          button.disabled = true;
+          try {
+            const data = await api(`/api/tasks/${encodeURIComponent(task.id)}/files/${encodeURIComponent(file.id)}`);
+            const link = document.createElement('a'); link.href = data.download_url; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.click();
+          } catch (error) { toast(error.message); } finally { button.disabled = false; }
+        });
+        files.append(button);
+      }
+      entry.body.append(files); entry.files = files;
+    }
+  }
+  return entry.card;
+}
+async function loadTasks() {
+  // Coalesce overlapping manual refreshes and polls to prevent stale response reordering.
+  if (tasksRequest) return tasksRequest;
+  tasksRequest = (async () => {
+    try {
+      const data = await api('/api/tasks');
+      const tasks = (data.tasks || []).filter((task) => task.status !== 'uploading').slice(0, 12);
+      $('empty').hidden = tasks.length > 0;
+      $('live-label').textContent = 'Live queue';
+      const activeIds = new Set(tasks.map((task) => task.id));
+      for (const [id, entry] of taskCards) {
+        if (!activeIds.has(id)) { entry.card.remove(); taskCards.delete(id); }
+      }
+      for (const [index, task] of tasks.entries()) {
+        const card = updateTaskCard(task);
+        // Leave correctly ordered cards in place; only insert new or reordered tasks.
+        if ($('tasks').children[index] !== card) $('tasks').insertBefore(card, $('tasks').children[index] || null);
+      }
+    } catch (error) { $('live-label').textContent = 'Reconnecting'; if (!$('tasks').children.length) toast(error.message); }
+    finally { tasksRequest = null; }
+  })();
+  return tasksRequest;
 }
 async function initializeCapture(user) {
   draftKey = user.id || user.sub || user.email;
@@ -275,7 +324,8 @@ async function initializeCapture(user) {
     renderDraft();
   } catch (error) { toast('Browser storage is unavailable. Enable it to save photo batches.'); }
   await loadTasks();
-  setInterval(() => { if (!document.hidden && !$('capture-workspace').hidden && !uploading) loadTasks(); }, 10000);
+  if (taskPollTimer) clearInterval(taskPollTimer);
+  taskPollTimer = setInterval(() => { if (!document.hidden && !$('capture-workspace').hidden && !uploading) loadTasks(); }, 10000);
 }
 $('start-capture').addEventListener('click', () => startCapture());
 $('empty-capture').addEventListener('click', () => startCapture());
