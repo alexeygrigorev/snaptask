@@ -1,0 +1,3 @@
+interface:
+  display_name: "SnapTask"
+  short_description: "Claim photo tasks and report agent results"
