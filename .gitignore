@@ -1,0 +1,11 @@
+.aws-sam/
+.runtime/
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.apk
