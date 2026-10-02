@@ -20,14 +20,9 @@ python3 cli/snaptask.py claim --agent my-agent
 
 The login command prompts for the token and stores it in a file readable only by your user. Automation can use `SNAPTASK_TOKEN` and optionally `SNAPTASK_URL` instead.
 
-Install the included agent skill:
+Open this checkout in Codex to discover the included `$snaptask` skill through `.agents/skills/snaptask`. Follow the [laptop setup guide](skills/snaptask/references/laptop.md) to authenticate and start a session, or install the skill for use in other projects.
 
-```bash
-mkdir -p ~/.codex/skills
-cp -R skills/snaptask ~/.codex/skills/
-```
-
-Ask your agent to use `$snaptask` to process the next task. Read [the skill](skills/snaptask/SKILL.md) for guidance on claiming work and downloading attachments, then use it to report results from any agent.
+Start by asking your agent to `Use $snaptask to check my access and list available tasks.` Read [the skill](skills/snaptask/SKILL.md) for guidance on claiming work and downloading attachments, then use it to report results from any agent.
 
 ## API and webhooks
 
