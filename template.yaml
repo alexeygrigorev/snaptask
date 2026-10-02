@@ -1,0 +1,105 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SnapTask photo tasks API and webhook worker
+Parameters:
+  AuthClientId: {Type: String}
+Globals:
+  Function:
+    Runtime: python3.13
+    Timeout: 30
+    MemorySize: 512
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref Tasks
+        BUCKET_NAME: !Ref Files
+        AUTH_ISSUER: https://cognito-idp.us-east-1.amazonaws.com/us-east-1_H7nJu52Bs
+        AUTH_BASE_URL: https://auth.dtcdev.click
+        AUTH_CLIENT_ID: !Ref AuthClientId
+        APP_URL: https://snaptask.dtcdev.click
+Resources:
+  Tasks:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - {AttributeName: PK, AttributeType: S}
+        - {AttributeName: SK, AttributeType: S}
+      KeySchema:
+        - {AttributeName: PK, KeyType: HASH}
+        - {AttributeName: SK, KeyType: RANGE}
+      StreamSpecification: {StreamViewType: NEW_AND_OLD_IMAGES}
+      TimeToLiveSpecification: {AttributeName: expires_at, Enabled: true}
+      PointInTimeRecoverySpecification: {PointInTimeRecoveryEnabled: true}
+  Files:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: {SSEAlgorithm: AES256}
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins: [https://snaptask.dtcdev.click]
+            AllowedMethods: [GET, PUT, HEAD]
+            AllowedHeaders: ['*']
+            MaxAge: 300
+  Api:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: snaptask-api
+      CodeUri: .runtime/package/
+      Handler: backend.app.handler
+      FunctionUrlConfig: {AuthType: NONE}
+      Policies:
+        - DynamoDBCrudPolicy: {TableName: !Ref Tasks}
+        - S3CrudPolicy: {BucketName: !Ref Files}
+  UrlInvoke:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Api
+      Action: lambda:InvokeFunction
+      Principal: '*'
+      InvokedViaFunctionUrl: true
+  FailedWebhooks:
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+  Webhooks:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: snaptask-webhooks
+      CodeUri: .runtime/package/
+      Handler: backend.webhooks.handler
+      Timeout: 60
+      Policies:
+        - DynamoDBCrudPolicy: {TableName: !Ref Tasks}
+        - SQSSendMessagePolicy: {QueueName: !GetAtt FailedWebhooks.QueueName}
+      Events:
+        Changes:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt Tasks.StreamArn
+            StartingPosition: LATEST
+            BatchSize: 10
+            MaximumRetryAttempts: 5
+            MaximumRecordAgeInSeconds: 86400
+            BisectBatchOnFunctionError: true
+            FunctionResponseTypes: [ReportBatchItemFailures]
+            DestinationConfig:
+              OnFailure:
+                Type: SQS
+                Destination: !GetAtt FailedWebhooks.Arn
+Outputs:
+  FunctionUrl: {Value: !GetAtt ApiUrl.FunctionUrl}
+  TableName: {Value: !Ref Tasks}
+  BucketName: {Value: !Ref Files}
+  FailedWebhooksQueue: {Value: !Ref FailedWebhooks}

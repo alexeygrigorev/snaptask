@@ -1,0 +1,22 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: SnapTask client for existing shared DTC login
+Resources:
+  Client:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: snaptask
+      UserPoolId: us-east-1_H7nJu52Bs
+      GenerateSecret: false
+      PreventUserExistenceErrors: ENABLED
+      EnableTokenRevocation: true
+      ExplicitAuthFlows: [ALLOW_REFRESH_TOKEN_AUTH]
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows: [code]
+      AllowedOAuthScopes: [openid, email, profile]
+      SupportedIdentityProviders: [Google]
+      CallbackURLs: [https://snaptask.dtcdev.click/auth/callback]
+      LogoutURLs: [https://snaptask.dtcdev.click/]
+      IdTokenValidity: 60
+      TokenValidityUnits: {IdToken: minutes}
+Outputs:
+  ClientId: {Value: !Ref Client}

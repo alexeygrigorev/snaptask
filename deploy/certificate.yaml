@@ -1,0 +1,13 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: SnapTask TLS certificate
+Resources:
+  Certificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: snaptask.dtcdev.click
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: snaptask.dtcdev.click
+          HostedZoneId: Z05963572WVWFHDQZH5NE
+Outputs:
+  CertificateArn: {Value: !Ref Certificate}
