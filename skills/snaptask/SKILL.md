@@ -9,6 +9,8 @@ Use the Python CLI from the SnapTask checkout (`cli/snaptask.py`). Locate the ch
 
 For laptop setup, authentication errors, or a first Codex session, read [references/laptop.md](references/laptop.md). Verify access with `python3 cli/snaptask.py tasks list` before claiming work. A request to set up access authorizes checking the inbox, but does not request processing tasks.
 
+Sign in with the Google account `alexey@datatalks.club` for this workspace. Choose that account explicitly when Google offers multiple accounts; CLI credentials must belong to the same account.
+
 Let the CLI load credentials from its existing configuration or `SNAPTASK_TOKEN`. If neither exists, direct the user to sign in on the web, create an API token, and run `python3 cli/snaptask.py login` in their own terminal, which prompts privately. Do not start the interactive login in an unattended agent shell. Never include API tokens in commands, saved task results, or chat output, and do not print the configuration file.
 
 ## Process a task
