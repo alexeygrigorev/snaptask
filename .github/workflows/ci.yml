@@ -9,9 +9,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
-      - run: python -m pip install -r backend/requirements.txt pytest 'moto[dynamodb,s3]' playwright cfn-lint
-      - run: python -m playwright install --with-deps chromium
-      - run: python -m pytest -q
-      - run: cfn-lint template.yaml deploy/*.yaml
+          python-version-file: .python-version
+      - uses: astral-sh/setup-uv@v9
+        with:
+          version: '0.10.11'
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run --locked python -m playwright install --with-deps chromium
+      - run: uv run --locked python -m pytest -q
+      - run: uv run --locked cfn-lint template.yaml deploy/*.yaml
       - run: bash -n deploy/deploy.sh
