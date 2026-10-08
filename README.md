@@ -1,8 +1,20 @@
 # Admin OS
 
-Alexey's workspace for ad hoc administration, connected services, and photo tasks. Start with the [admin workspace](admin/README.md), [connection guide](admin/connections.md), and [company document index](admin/documents.md).
+Alexey's Admin OS: a workspace where agents handle day-to-day administration using connected services, reusable procedures, and verified company sources. SnapTask, the image and file task queue, is one feature within this workspace.
 
-## SnapTask
+## Administrative workflows
+
+Start with the [admin workspace](admin/README.md). It brings together:
+
+- [Connected accounts and services](admin/connections.md), using Dapier's CLI/API where available and Chrome for workflows that require provider forms.
+- [Company document lookup](admin/documents.md) and [Drive procedures](admin/services/drive.md) for finding and verifying source records.
+- [Gmail lookup](admin/services/gmail.md) and [Ramp vendor forms](admin/services/ramp.md) for company administration.
+- [Slack moderation](admin/services/slack.md) for matching members from screenshots and deactivating their accounts.
+- SnapTask for collecting images and files, queueing tasks, and letting agents claim and complete them.
+
+[AGENTS.md](AGENTS.md) defines how agents work in this repository. Keep reusable instructions and source references here; report individual task outcomes in chat. Use existing authentication and keep credentials and private records out of repository documentation.
+
+## SnapTask image queue
 
 Turn a batch of photos into a task that an agent can claim through an API or CLI.
 
@@ -10,7 +22,7 @@ Open [snaptask.dtcdev.click](https://snaptask.dtcdev.click) on your phone and si
 
 Your browser saves unfinished batches locally, so use the same browser and device to resume them. You can attach files up to 25 MB each.
 
-## Connect an agent
+## Connect an agent to SnapTask
 
 Create an API token in the web app, then configure the CLI. Use Python 3.10 or newer to run the CLI with its standard library.
 
@@ -28,7 +40,7 @@ Open this checkout in Codex to discover the included `$snaptask` skill through `
 
 Start by asking your agent to `Use $snaptask to check my access and list available tasks.` Read [the skill](skills/snaptask/SKILL.md) for guidance on claiming work and downloading attachments, then use it to report results from any agent.
 
-## API and webhooks
+## SnapTask API and webhooks
 
 Send `Authorization: Bearer <token>` to `/api/*` and use the [client guide](docs/clients.md) for CLI commands and request examples.
 
@@ -40,7 +52,7 @@ Send `Authorization: Bearer <token>` to `/api/*` and use the [client guide](docs
 
 Verify HMAC signatures in your webhook receiver and deduplicate events by ID. SnapTask retries failed deliveries and sends exhausted deliveries to an AWS queue for investigation.
 
-## Develop and deploy
+## Develop and deploy SnapTask
 
 Install [uv](https://docs.astral.sh/uv/getting-started/installation/), sync the locked dependencies, and run the tests before deploying. uv manages the virtual environment and uses Python 3.13 from `.python-version`, matching the Lambda runtime:
 
