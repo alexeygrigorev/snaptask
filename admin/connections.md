@@ -24,3 +24,10 @@ Last checked: 2026-10-08 (Europe/Berlin).
 On 2026-10-08, the new Gmail connection was configured with `gmail.readonly` and `userinfo.email`. Dapier's live consent flow automatically requested **both `gmail.readonly` and `gmail.send`**. Google displayed **"Google hasn't verified this app"**. No Gmail access was granted by the agent. The user must review the warning and consent. Do not describe this connection as read-only unless readback confirms the granted scopes.
 
 Chrome has existing Gmail sessions for the personal and DataTalks accounts. The user requested Ramp email lookup through Dapier, so finish Dapier consent before using it for that lookup.
+
+## Slack
+
+- DataTalks.Club member administration: https://datatalks-club.slack.com/admin.
+- Chrome's existing session was verified on 2026-10-08 as administrator **Alexey Grigorev** in **DataTalks.Club**.
+- Member deactivation and status readback succeeded through the browser. No Slack API/Dapier connection was established in this task.
+- Follow [Slack moderation](services/slack.md) for screenshot matching, deactivation, verification, and chat reporting.

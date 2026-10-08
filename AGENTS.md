@@ -3,6 +3,7 @@
 This repository is Alexey's workspace for ad hoc administration, with the existing SnapTask application kept alongside it.
 
 - Read `admin/README.md` and `admin/connections.md` before administrative work. Use `admin/documents.md` to locate source documents.
+- For Slack moderation work, read `admin/services/slack.md`. Preserve recorded user decisions and distinguish attempted actions from verified external completion.
 - Prefer Dapier's CLI/API for connected services. Use Chrome for provider consent and forms when no suitable API exists.
 - Verify which Google account and legal entity each source belongs to. Never substitute a contractor's bank or tax details for Alexey's.
 - Record verified source titles, IDs, links, relevant fields, and verification dates in the document index. Mark candidates and unresolved facts explicitly.
