@@ -1,4 +1,8 @@
-# SnapTask
+# Admin OS
+
+Alexey's workspace for ad hoc administration, connected services, and photo tasks. Start with the [admin workspace](admin/README.md), [connection guide](admin/connections.md), and [company document index](admin/documents.md).
+
+## SnapTask
 
 Turn a batch of photos into a task that an agent can claim through an API or CLI.
 
@@ -38,14 +42,17 @@ Verify HMAC signatures in your webhook receiver and deduplicate events by ID. Sn
 
 ## Develop and deploy
 
-Install the backend dependencies and run the tests before deploying:
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/), sync the locked dependencies, and run the tests before deploying. uv manages the virtual environment and uses Python 3.13 from `.python-version`, matching the Lambda runtime:
 
 ```bash
-uv venv .venv
-uv pip install --python .venv/bin/python -r backend/requirements.txt pytest 'moto[dynamodb,s3]'
-.venv/bin/python -m pytest -q
+uv sync --locked
+uv run python -m playwright install chromium
+uv run python -m pytest -q
+uv run cfn-lint template.yaml deploy/*.yaml
 ./deploy/deploy.sh
 ```
+
+Runtime dependencies and development tools are declared in `pyproject.toml`; `uv.lock` records their exact versions. Use `uv add PACKAGE` for runtime dependencies, `uv add --dev PACKAGE` for development tools, and `uv lock --upgrade` to update locked versions. Commit both files after changing dependencies. Deployment exports only runtime dependencies from the lockfile and installs Linux wheels for Lambda.
 
 We deploy the API to AWS Lambda and store tasks in DynamoDB with files in private S3 storage. CloudFront serves the custom domain through Route 53, with Cognito login at `auth.dtcdev.click`. The deployment script creates separate stacks for the application, OAuth client, TLS certificate, and custom domain. It requires AWS sandbox credentials and SAM CLI. It retains task and file storage if an application stack is deleted.
 
