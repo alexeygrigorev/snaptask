@@ -25,6 +25,8 @@ Create photo batches with `status: uploading`; text tasks default to `todo`. Res
 
 Send an `Idempotency-Key` header when creating a batch or reserving each file so retries reuse the same task or attachment. Upload URLs expire after 15 minutes; repeat the reservation with the same key to get a fresh URL. Reservations expire after one day. Attachments must be between one byte and 25 MB.
 
+Tasks expire two weeks after creation (`expires_at`, Unix seconds), and their attachments are deleted with them. Expired tasks disappear from listings and claims immediately.
+
 Claims last 15 minutes. Save the returned `claim_token`, then renew before `lease_until` with the same agent name. API clients changing a claimed task's status must include its current claim token. Complete work with `{status: "done", claim_token: "...", result: "..."}`. An expired claim can be taken by another agent.
 
 ## API tokens and event receivers

@@ -85,6 +85,39 @@ def test_browser_csrf_and_public_health(api):
     assert app.handler({'rawPath': '/../backend/app.py'}, None)['statusCode'] == 404
 
 
+def test_tasks_expire_after_two_weeks(api):
+    created = api('POST', '/api/tasks', {'title': 'Old'})[1]
+    assert created['expires_at'] - created['created_at'] == 14 * 86400
+    with patch.object(app, 'now', return_value=created['expires_at']):
+        assert api('GET', '/api/tasks')[1]['tasks'] == []
+        assert api('GET', '/api/tasks/' + created['id'])[0] == 404
+        assert api('POST', '/api/tasks/claim', {'agent': 'a'})[1]['task'] is None
+
+
+def test_expired_browser_session_refreshes_from_refresh_cookie(api):
+    def verify(token):
+        if token != 'fresh-id':
+            raise ValueError('expired')
+        return {'sub': 'alice'}
+    event = {'rawPath': '/api/tasks', 'cookies': ['snaptask_session=old-id', 'snaptask_refresh=rt'], 'headers': {}, 'requestContext': {'http': {'method': 'GET'}}}
+    with patch.object(app, 'verify_jwt', side_effect=verify), patch.object(app, 'oauth_post', return_value={'id_token': 'fresh-id'}) as post:
+        result = app.handler(event, None)
+    assert result['statusCode'] == 200
+    assert post.call_args.args[1]['grant_type'] == 'refresh_token' and post.call_args.args[1]['refresh_token'] == 'rt'
+    assert any(c.startswith('snaptask_session=fresh-id;') for c in result['cookies'])
+    event = {'rawPath': '/api/tasks', 'cookies': ['snaptask_refresh=revoked'], 'headers': {}, 'requestContext': {'http': {'method': 'GET'}}}
+    with patch.object(app, 'oauth_post', side_effect=OSError('invalid_grant')):
+        result = app.handler(event, None)
+    assert result['statusCode'] == 401 and result['cookies'] == ['snaptask_refresh=; Max-Age=0; Path=/; Secure; HttpOnly; SameSite=Lax']
+
+
+def test_logout_revokes_and_clears_refresh_cookie(api):
+    with patch.object(app, 'oauth_post', return_value={}) as post:
+        result = app.handler({'rawPath': '/auth/logout', 'cookies': ['snaptask_refresh=rt']}, None)
+    assert post.call_args.args == ('/oauth2/revoke', {'client_id': 'client', 'token': 'rt'})
+    assert 'snaptask_refresh=; Max-Age=0; Path=/; Secure; HttpOnly; SameSite=Lax' in result['cookies']
+
+
 @pytest.mark.parametrize('url', ['http://example.com', 'https://127.0.0.1', 'https://169.254.169.254', 'https://[::1]', 'https://example.com:8443', 'https://user@example.com'])
 def test_webhook_ssrf_validation(url):
     with patch.object(socket, 'getaddrinfo', return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('127.0.0.1', 443))]):

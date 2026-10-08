@@ -19,6 +19,8 @@ from botocore.config import Config
 from boto3.dynamodb.conditions import Key
 
 MAX_FILE_SIZE = 25 * 1024 * 1024
+REFRESH_MAX_AGE = 30 * 24 * 3600
+TASK_TTL = 14 * 24 * 3600
 _jwks = None
 
 
@@ -71,6 +73,35 @@ def verify_jwt(token):
     return claims
 
 
+def session_cookies(id_token, refresh_token=None):
+    cookies = ['snaptask_session=' + id_token + '; Max-Age=3600; Path=/; Secure; HttpOnly; SameSite=Lax']
+    if refresh_token:
+        cookies.append('snaptask_refresh=' + refresh_token + '; Max-Age=' + str(REFRESH_MAX_AGE) + '; Path=/; Secure; HttpOnly; SameSite=Lax')
+    return cookies
+
+
+def oauth_post(endpoint, fields):
+    req = urllib.request.Request(os.environ['AUTH_BASE_URL'].rstrip('/') + endpoint, data=urllib.parse.urlencode(fields).encode(), headers={'Content-Type': 'application/x-www-form-urlencoded'})
+    with urllib.request.urlopen(req, timeout=10) as result:
+        body = result.read()
+    return json.loads(body) if body else {}
+
+
+def refresh_session(event):
+    """Exchange the refresh cookie for a new ID token, queueing the new session cookie on the event."""
+    refresh_token = read_cookie(event, 'snaptask_refresh')
+    if not refresh_token:
+        raise PermissionError('Sign in required')
+    try:
+        tokens = oauth_post('/oauth2/token', {'grant_type': 'refresh_token', 'client_id': os.environ['AUTH_CLIENT_ID'], 'refresh_token': refresh_token})
+        claims = verify_jwt(tokens['id_token'])
+    except Exception as exc:
+        event['_set_cookies'] = ['snaptask_refresh=; Max-Age=0; Path=/; Secure; HttpOnly; SameSite=Lax']
+        raise PermissionError('Session expired or invalid') from exc
+    event['_set_cookies'] = session_cookies(tokens['id_token'], tokens.get('refresh_token'))
+    return claims
+
+
 def authenticate(event):
     headers = {k.lower(): v for k, v in event.get('headers', {}).items()}
     auth = headers.get('authorization', '')
@@ -81,12 +112,17 @@ def authenticate(event):
             raise PermissionError('Invalid API token')
         return lookup['owner'], {'sub': lookup['owner'], 'name': lookup['name'], 'auth': 'api_token'}
     token = auth[7:] if auth.startswith('Bearer ') else read_cookie(event, 'snaptask_session')
-    if not token:
-        raise PermissionError('Sign in required')
-    try:
-        claims = verify_jwt(token)
-    except Exception as exc:
-        raise PermissionError('Session expired or invalid') from exc
+    if auth:
+        try:
+            claims = verify_jwt(token)
+        except Exception as exc:
+            raise PermissionError('Session expired or invalid') from exc
+    else:
+        try:
+            claims = verify_jwt(token) if token else None
+        except Exception:
+            claims = None
+        claims = claims or refresh_session(event)
     method = event.get('requestContext', {}).get('http', {}).get('method', event.get('httpMethod', 'GET'))
     if not auth and method not in ('GET', 'HEAD', 'OPTIONS'):
         if headers.get('origin', '').rstrip('/') != os.environ['APP_URL'].rstrip('/'):
@@ -94,12 +130,17 @@ def authenticate(event):
     return claims['sub'], claims
 
 
+def expired(item):
+    # DynamoDB TTL deletes lazily (up to ~48h late), so hide expired items ourselves.
+    return 'expires_at' in item and item['expires_at'] <= now()
+
+
 def items(owner, prefix):
     result = []
     args = {'KeyConditionExpression': Key('PK').eq('USER#' + owner) & Key('SK').begins_with(prefix)}
     while True:
         page = table().query(**args)
-        result.extend(page['Items'])
+        result.extend(i for i in page['Items'] if not expired(i))
         if 'LastEvaluatedKey' not in page:
             return result
         args['ExclusiveStartKey'] = page['LastEvaluatedKey']
@@ -111,7 +152,7 @@ def public(item):
 
 def task(owner, ident):
     item = table().get_item(Key={'PK': 'USER#' + owner, 'SK': 'TASK#' + ident}, ConsistentRead=True).get('Item')
-    if not item:
+    if not item or expired(item):
         raise LookupError('Task not found')
     return item
 
@@ -144,25 +185,35 @@ def auth_route(path, event):
         query = urllib.parse.urlencode({'client_id': os.environ['AUTH_CLIENT_ID'], 'response_type': 'code', 'scope': 'openid email profile', 'redirect_uri': redirect, 'state': state, 'nonce': nonce, 'code_challenge': challenge, 'code_challenge_method': 'S256'})
         return response(302, {}, {'location': base + '/oauth2/authorize?' + query}, ['snaptask_oauth=' + cookie + '; Max-Age=600; Path=/auth; Secure; HttpOnly; SameSite=Lax'])
     if path == '/auth/logout':
-        return response(302, {}, {'location': '/'}, ['snaptask_session=; Max-Age=0; Path=/; Secure; HttpOnly; SameSite=Lax'])
+        refresh_token = read_cookie(event, 'snaptask_refresh')
+        if refresh_token:
+            try:
+                oauth_post('/oauth2/revoke', {'client_id': os.environ['AUTH_CLIENT_ID'], 'token': refresh_token})
+            except Exception:
+                pass
+        return response(302, {}, {'location': '/'}, ['snaptask_session=; Max-Age=0; Path=/; Secure; HttpOnly; SameSite=Lax', 'snaptask_refresh=; Max-Age=0; Path=/; Secure; HttpOnly; SameSite=Lax'])
     query = event.get('queryStringParameters') or {}
     try:
         stored = json.loads(base64.urlsafe_b64decode(read_cookie(event, 'snaptask_oauth') or ''))
         if not secrets.compare_digest(query.get('state', ''), stored['state']):
             raise ValueError()
-        payload = urllib.parse.urlencode({'grant_type': 'authorization_code', 'client_id': os.environ['AUTH_CLIENT_ID'], 'code': query['code'], 'redirect_uri': redirect, 'code_verifier': stored['verifier']}).encode()
-        req = urllib.request.Request(base + '/oauth2/token', data=payload, headers={'Content-Type': 'application/x-www-form-urlencoded'})
-        with urllib.request.urlopen(req, timeout=10) as result:
-            tokens = json.load(result)
+        tokens = oauth_post('/oauth2/token', {'grant_type': 'authorization_code', 'client_id': os.environ['AUTH_CLIENT_ID'], 'code': query['code'], 'redirect_uri': redirect, 'code_verifier': stored['verifier']})
         claims = verify_jwt(tokens['id_token'])
         if not secrets.compare_digest(claims.get('nonce', ''), stored['nonce']):
             raise ValueError('Invalid nonce')
     except Exception:
         return response(400, {'error': 'Sign-in failed. Please try again.'})
-    return response(302, {}, {'location': '/'}, ['snaptask_oauth=; Max-Age=0; Path=/auth; Secure; HttpOnly; SameSite=Lax', 'snaptask_session=' + tokens['id_token'] + '; Max-Age=3600; Path=/; Secure; HttpOnly; SameSite=Lax'])
+    return response(302, {}, {'location': '/'}, ['snaptask_oauth=; Max-Age=0; Path=/auth; Secure; HttpOnly; SameSite=Lax', *session_cookies(tokens['id_token'], tokens.get('refresh_token'))])
 
 
 def handler(event, context):
+    result = dispatch(event)
+    if event.get('_set_cookies'):
+        result['cookies'] = result.get('cookies', []) + event['_set_cookies']
+    return result
+
+
+def dispatch(event):
     try:
         return route(event)
     except PermissionError as exc:
@@ -214,7 +265,7 @@ def route(event):
             if initial_status not in ('todo', 'uploading'):
                 raise ValueError('Initial status must be todo or uploading')
             title = bounded(data.get('title', 'New capture'), 'title', 300).strip() or 'New capture'
-            item = {'PK': 'USER#' + owner, 'SK': 'TASK#' + ident, 'owner': owner, 'id': ident, 'title': title, 'notes': bounded(data.get('notes', ''), 'notes'), 'status': initial_status, 'created_at': now(), 'updated_at': now(), 'files': []}
+            item = {'PK': 'USER#' + owner, 'SK': 'TASK#' + ident, 'owner': owner, 'id': ident, 'title': title, 'notes': bounded(data.get('notes', ''), 'notes'), 'status': initial_status, 'created_at': now(), 'updated_at': now(), 'expires_at': now() + TASK_TTL, 'files': []}
             try:
                 table().put_item(Item=item, ConditionExpression='attribute_not_exists(PK)')
             except ClientError as exc:

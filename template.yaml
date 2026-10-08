@@ -42,6 +42,10 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          # Tasks expire after 14 days via DynamoDB TTL; drop their attachments a day later.
+          - {Id: ExpireTaskFiles, Status: Enabled, ExpirationInDays: 15, AbortIncompleteMultipartUpload: {DaysAfterInitiation: 1}}
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault: {SSEAlgorithm: AES256}

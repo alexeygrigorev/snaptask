@@ -17,6 +17,7 @@ Resources:
       CallbackURLs: [https://snaptask.dtcdev.click/auth/callback]
       LogoutURLs: [https://snaptask.dtcdev.click/]
       IdTokenValidity: 60
-      TokenValidityUnits: {IdToken: minutes}
+      RefreshTokenValidity: 30
+      TokenValidityUnits: {IdToken: minutes, RefreshToken: days}
 Outputs:
   ClientId: {Value: !Ref Client}
