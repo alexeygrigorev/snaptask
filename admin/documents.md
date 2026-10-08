@@ -1,19 +1,15 @@
-# Company document index
+# Company source documents
 
-Last searched: 2026-10-08, using Dapier connection `google-sheets` as `alexey@datatalks.club`.
+Access these records through Dapier connection `google-sheets`, verified as `alexey@datatalks.club`, using the existing `todo-cli` grant. See the [Drive guide](services/drive.md) for commands.
 
-No authoritative document for Alexey's current IBAN or VAT identifier has been verified yet. Do not fill these values from filenames or contractor invoices.
+| Needed information | Source | Contents |
+|---|---|---|
+| VAT and company contact details | [DataTalks.Club letterhead - VAT Information](https://docs.google.com/document/d/1mYXdY9ubBP4lpTS-lUqqh0CA6ZnWly8IKfsNF4POxmo/edit?usp=drivesdk) | Company name, business address, VAT number, email, phone. |
+| Finom payment details | [DataTalks.Club letterhead - bank information (Finom)](https://docs.google.com/document/d/1beDJyHfV5e68swhRi1OGD2f6wsw6H6K7L7p3_i5G2Lk/edit?tab=t.0) | Current FINOM PAYMENTS bank details, IBAN/BIC, recipient and business address. Ignore obsolete Solaris values in old cached copies. |
+| Revolut payment details | [DataTalks.Club letterhead - bank information (Revolut)](https://docs.google.com/document/d/1LbXLTEjS_APb5X9HAyfD1a_aL3LPIVzzXpnGb9amqac/edit?usp=drivesdk) | IBAN/BIC, recipient, Revolut Bank UAB and bank address, company address. Revolut supports EUR. |
 
-## Located candidates
+Fetch current values from the original document before filling forms. Do not mix details from different banks or substitute contractor banking/tax details for company details. Distinguish vendor address from bank address.
 
-| Document | Drive ID | Possible use | Verification |
-|---|---|---|---|
-| Independent Freelancer Agreement. DataTalks.Club, Alexey Grigorev and Valeriia Kuka | `18Z198k_xVaA5v_v2xSbsrb1jgZLI1QIjnp4-SmGBIcM` | Contract party details; search matched IBAN or VAT text. | Title and ID verified; contents and ownership of bank/tax details pending. Modified 2026-04-06. |
-| Professional Services Agreement Form 07Jul2025 (4).docx | `1vXUHfdcJcOhEColmnDK0jkvzghyylYy8` | Contract identity fields; search matched IBAN or VAT text. | Title and ID verified; contents pending. Modified 2026-01-27. |
-| Invoices | `1cVwqJ_kmReAzSjSV4zTZu5x3JtL7Ht8hc6cvr4MCUb0` | Spreadsheet candidate for invoice references. | Title and ID verified; contents pending. Modified 2023-09-22; current details must be checked. |
+These records are in shared Drive content. Include `includeItemsFromAllDrives=true` and `supportsAllDrives=true` when searching through the read helper; a bounded discovery listing may omit them. Follow `nextPageToken` when needed.
 
-The Johanna Bayer invoice documents also match IBAN/VAT searches, but are contractor invoices and must not be treated as Alexey's banking records.
-
-## Updating this index
-
-For each verified source, record its exact title, Drive ID and observed URL, legal entity/account, which fields it establishes, document date, and last verification date. Identify conflicts and superseded sources. Keep private field values in ignored task working files, fetching the source again before use.
+Keep this index limited to reusable source titles, links/IDs, legal entities, and fields available. Store no bank numbers, tax identifiers, task outcomes, approval history, or copied private documents here.

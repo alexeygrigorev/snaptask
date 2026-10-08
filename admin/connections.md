@@ -1,7 +1,5 @@
 # Connections
 
-Last checked: 2026-10-08 (Europe/Berlin).
-
 ## Dapier
 
 - Service: https://dapier.dtcdev.click
@@ -19,11 +17,13 @@ Last checked: 2026-10-08 (Europe/Berlin).
 | `google-sheets` | `alexey@datatalks.club` | Drive read-only, Docs, Sheets; connected. Existing `todo-cli` agent has a `use` grant. |
 | `google-calendar` | `alexey.s.grigoriev@gmail.com` | Calendar, Drive, Docs, Sheets; connected. |
 | `google-drive` | None | Setup incomplete; do not use as a verified account. |
-| `google-gmail-datatalks` | Not yet verified | Created for Gmail lookup; consent incomplete. |
+| `google-gmail-datatalks` | `alexey@datatalks.club` | Gmail read and send; connected. `admin-os` agent has a `use` grant for the existing CLI subject. |
 
-On 2026-10-08, the new Gmail connection was configured with `gmail.readonly` and `userinfo.email`. Dapier's live consent flow automatically requested **both `gmail.readonly` and `gmail.send`**. Google displayed **"Google hasn't verified this app"**. No Gmail access was granted by the agent. The user must review the warning and consent. Do not describe this connection as read-only unless readback confirms the granted scopes.
+Gmail grants include both read and send access. The display name is `Gmail (DataTalks; read and send granted)`. Gmail API is enabled in Google project `dtcdev-click` (`685623962041`). Inspect actual scopes and account binding before use.
 
-Chrome has existing Gmail sessions for the personal and DataTalks accounts. The user requested Ramp email lookup through Dapier, so finish Dapier consent before using it for that lookup.
+## Read helper
+
+`admin/google_read.py` performs read-only Drive, Docs, and Gmail API calls. Invoke it through Dapier `token exec` with `uv run --no-project python <absolute-helper-path> <service> <resource> --param KEY=VALUE`. Use `google-sheets --agent todo-cli` for existing Drive access, and `google-gmail-datatalks --agent admin-os` for Gmail. Use ignored `work/` only for temporary private output and remove it after use.
 
 ## Slack
 
