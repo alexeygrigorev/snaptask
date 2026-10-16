@@ -27,7 +27,7 @@ Proceed with a clearly identified target under this request, subject to the acti
 6. Open **Actions for <matched name>**, then select **Deactivate account**.
 7. Read Slack's **Deactivate user?** dialog. In the verified flow it says the member will no longer be able to sign in, while messages and files remain accessible. Apply any confirmation or handoff required by the active browser rules. With authorization satisfied, click **Deactivate**.
 8. Verify that the matched member row shows **Deactivated**. A button click or a loading indicator alone is not completion. If submission has an uncertain outcome, inspect the current account state before retrying.
-9. Save a verification screenshot under ignored `work/slack/`, for example `<member>-deactivated-YYYY-MM-DD.png`. Embed the saved screenshot in the completion reply when required by the browser instructions. Do not commit screenshots or raw private source material.
+9. When browser instructions require a verification screenshot, save it outside the checkout (for example in a temporary directory) and embed it in the completion reply. Do not retain screenshots or other proof-of-work artifacts anywhere in the repository, including ignored `work/`. Use `work/` only for necessary temporary task files and remove those files after use.
 10. Report the matched name, verified outcome, and any outstanding steps concisely in chat. Do not create or commit a per-task work log; Alexey prefers chat reporting. Keep reusable workflow documentation separate from individual moderation results.
 
 ## Verified example
