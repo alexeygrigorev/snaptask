@@ -1,17 +1,8 @@
-# Admin OS
+# SnapTask
 
-Alexey's Admin OS: a workspace where agents handle day-to-day administration using connected services, reusable procedures, and verified company sources. SnapTask, the image and file task queue, is one feature within this workspace.
+Photo and file tasks for agents through a web capture interface, API and CLI.
 
-## Administrative workflows
-
-Start with the [admin workspace](admin/README.md). It brings together:
-
-- [Connected accounts and services](admin/connections.md), using Dapier's CLI/API where available and Chrome for workflows that require provider forms.
-- [Company document lookup](admin/documents.md) and [Drive procedures](admin/services/drive.md) for finding and verifying source records.
-- [Gmail lookup](admin/services/gmail.md) for company administration.
-- SnapTask for collecting images and files, queueing tasks, and letting agents claim and complete them.
-
-[AGENTS.md](AGENTS.md) defines how agents work in this repository. Keep reusable instructions and source references here; report individual task outcomes in chat. Use existing authentication and keep credentials and private records out of repository documentation.
+Reusable agent skills and administrative procedures are maintained in [bots-management](https://github.com/alexeygrigorev/bots-management). See [AGENTS.md](AGENTS.md) for the canonical skills and DataOps SOP identifiers.
 
 ## SnapTask image queue
 
@@ -35,9 +26,7 @@ python3 cli/snaptask.py claim --agent my-agent
 
 The login command prompts for the token and stores it in a file readable only by your user. Automation can use `SNAPTASK_TOKEN` and optionally `SNAPTASK_URL` instead.
 
-Open this checkout in Codex to discover the included `$snaptask` skill through `.agents/skills/snaptask`. Follow the [laptop setup guide](skills/snaptask/references/laptop.md) to authenticate and start a session, or install the skill for use in other projects.
-
-Start by asking your agent to `Use $snaptask to check my access and list available tasks.` Read [the skill](skills/snaptask/SKILL.md) for guidance on claiming work and downloading attachments, then use it to report results from any agent.
+Open the bots-management checkout in Codex to discover `$snaptask` in `.agents/skills/snaptask`. Its `references/laptop.md` covers setup; the skill uses the CLI from this application checkout. Start with `Use $snaptask to check my access and list available tasks.`
 
 ## SnapTask API and webhooks
 
@@ -67,4 +56,4 @@ Runtime dependencies and development tools are declared in `pyproject.toml`; `uv
 
 We deploy the API to AWS Lambda and store tasks in DynamoDB with files in private S3 storage. CloudFront serves the custom domain through Route 53, with Cognito login at `auth.dtcdev.click`. The deployment script creates separate stacks for the application, OAuth client, TLS certificate, and custom domain. It requires AWS sandbox credentials and SAM CLI. It retains task and file storage if an application stack is deleted.
 
-Use browser capture in v1 and connect agents through the API or CLI with the included skill. You can also register webhooks. A native Android capture app is planned for v2.
+Use browser capture in v1 and connect agents through the API or CLI with the skill maintained in bots-management. You can also register webhooks. A native Android capture app is planned for v2.

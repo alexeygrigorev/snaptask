@@ -1,39 +1,35 @@
-# Admin OS
+# SnapTask
 
-This repository is Alexey's workspace for ad hoc administration, with the existing SnapTask application kept alongside it.
+This repository owns the SnapTask photo/file queue application: backend, CLI,
+web client, tests, API documentation and AWS deployment configuration.
 
-- Read `admin/README.md` and `admin/connections.md` before administrative work. Use `admin/documents.md` to locate source documents.
-- For Gmail or company Drive work, read the matching guide in `admin/services/`. Keep these guides limited to reusable procedures.
-- Prefer Dapier's CLI/API for connected services. Use Chrome for provider consent and forms when no suitable API exists.
-- Verify which Google account and legal entity each source belongs to. Never substitute a contractor's bank or tax details for Alexey's.
-- Reuse existing authentication and grants. Follow the browser tool's confirmation and handoff rules for new access, contracts, and financial transactions.
-- Preserve existing SnapTask code, skills, and user changes unless the task requires changing them. Do not deploy, rename the remote repository, or push unrelated changes as part of administration.
+## Agent instructions
 
-## What to save
+Reusable agent instructions are maintained in the private
+[bots-management repository](https://github.com/alexeygrigorev/bots-management):
 
-Save information that helps complete a future task:
+- SnapTask setup, claims, downloads, lease renewal and completion:
+  `.agents/skills/snaptask/SKILL.md` there.
+- Google accounts, Gmail/Drive access and company source lookup:
+  `.agents/skills/dapier-access/SKILL.md` there; it is the canonical procedure.
+- Payment preparation: DataOps SOP
+  `sop.finance.payments.prepare-payment-details-from-source`.
+- N26 browser navigation and user handoff: DataOps SOP
+  `sop.finance.payments.open-n26-transfer-for-user`.
 
-- Reusable procedures, working commands, scripts, prerequisites, troubleshooting steps, and verification methods in `admin/services/`.
-- Connection names, verified account bindings, granted agent names, actual scopes, and authentication instructions in `admin/connections.md`. Store configuration facts, not setup histories or secrets.
-- Source-document titles, IDs, links, legal entities, and the fields they establish in `admin/documents.md`. Fetch current financial and tax values from the source before use; do not copy those values into the repository.
-- Explicit enduring user preferences when they apply to future work. A choice or approval for one request is not automatically an enduring preference or authorization for another request.
+Read the SOPs with `dataops kb show <id>` after activating the local CLI
+environment from bots-management. Do not keep copies of these skills or
+administrative procedures here. Personal context stays in bots-management's
+private context area; payment records and evidence stay on their authorized task.
 
-Keep documentation procedural and current. For example, save how to find an email or verify a source document; do not save which customer's invoice was handled or the steps taken on that occasion.
+## Application work
 
-## What not to save
-
-- Report task outcomes, approval history, errors encountered on a particular request, and outstanding steps in chat only. Do not create task logs, completion reports, audit trails, or case histories in the repository.
-- Do not retain customer/invoice records, email IDs or payloads, recipient-specific form URLs, bank numbers, tax identifiers, filled forms, or private document copies in repository documentation.
-- Do not retain screenshots, recordings, execution logs, or proof-of-work artifacts in the repository, including ignored folders. When a tool requires an artifact for the user-facing report, keep it outside the checkout.
-- Never put passwords, bearer tokens, OAuth tokens, authentication codes, or other credentials in source files, documentation, command arguments, or logs. Reuse the existing secure authentication storage.
-- Use ignored `work/` only for temporary files necessary to complete an active task. Remove files created for the task once they are no longer needed; preserve unrelated user files.
-
-An explicit user request to save a particular report or artifact overrides the default for that item only. Do not interpret a request to document a reusable workflow as permission to retain task traces.
-
-## Keep instructions up to date
-
-- When instructions used for a task are outdated, incomplete, or contradicted by verified behavior or the user's correction, update them as part of completing the task. Do not leave a known stale guide for the next session.
-- Correct the original guide and any affected index or cross-reference. Replace obsolete instructions rather than appending a chronological account of the fix.
-- Record the reusable correction: current command, account, source, prerequisite, or behavior. Keep the incident, customer details, and approval history in chat.
-- Verify updated commands or procedures when practical. If a correction cannot be verified, state the uncertainty in the guide rather than presenting a guess as fact.
-- Limit changes to instructions relevant to the task; preserve unrelated documentation and user changes. Report the documentation updates briefly in chat.
+- Preserve unrelated user changes. Do not deploy or rename the remote as part
+  of documentation or administration work.
+- Use `README.md` for development/deployment commands, `docs/api.md` for the
+  API contract and `docs/clients.md` for client usage.
+- Never commit tokens, credentials, private documents, screenshots or run logs.
+- Use ignored `work/` only for temporary files needed by an active task; remove
+  only files created by that task when they are no longer needed.
+- Keep application documentation current when code changes. Outcomes and
+  execution evidence belong on the relevant Hub/DataOps task.
