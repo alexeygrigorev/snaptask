@@ -24,10 +24,3 @@ Gmail grants include both read and send access. The display name is `Gmail (Data
 ## Read helper
 
 `admin/google_read.py` performs read-only Drive, Docs, and Gmail API calls. Invoke it through Dapier `token exec` with `uv run --no-project python <absolute-helper-path> <service> <resource> --param KEY=VALUE`. Use `google-sheets --agent todo-cli` for existing Drive access, and `google-gmail-datatalks --agent admin-os` for Gmail. Use ignored `work/` only for temporary private output and remove it after use.
-
-## Slack
-
-- DataTalks.Club member administration: https://datatalks-club.slack.com/admin.
-- Chrome's existing session was verified on 2026-10-08 as administrator **Alexey Grigorev** in **DataTalks.Club**.
-- Member deactivation and status readback succeeded through the browser. No Slack API/Dapier connection was established in this task.
-- Follow [Slack moderation](services/slack.md) for screenshot matching, deactivation, verification, and chat reporting.

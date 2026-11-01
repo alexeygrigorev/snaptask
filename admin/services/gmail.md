@@ -38,7 +38,7 @@ Check the verified mailbox and actual granted scopes before using the connection
 ## Search messages
 
 ```powershell
-uv run --no-project python -m dapier_cli.main token exec google-gmail-datatalks --agent admin-os -- uv run --no-project python $adminReadHelper gmail users/me/messages --param 'q=from:(ramp.com)' --param maxResults=10
+uv run --no-project python -m dapier_cli.main token exec google-gmail-datatalks --agent admin-os -- uv run --no-project python $adminReadHelper gmail users/me/messages --param 'q=newer_than:7d' --param maxResults=10
 ```
 
 The result contains message IDs and thread IDs, not complete message bodies. Narrow a search using normal Gmail syntax, such as sender, subject, or date. If `nextPageToken` is present and more results are needed, repeat with `--param 'pageToken=<returned-token>'`. An empty page is not proof that another mailbox has no matching email.

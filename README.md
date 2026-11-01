@@ -8,8 +8,7 @@ Start with the [admin workspace](admin/README.md). It brings together:
 
 - [Connected accounts and services](admin/connections.md), using Dapier's CLI/API where available and Chrome for workflows that require provider forms.
 - [Company document lookup](admin/documents.md) and [Drive procedures](admin/services/drive.md) for finding and verifying source records.
-- [Gmail lookup](admin/services/gmail.md) and [Ramp vendor forms](admin/services/ramp.md) for company administration.
-- [Slack moderation](admin/services/slack.md) for matching members from screenshots and deactivating their accounts.
+- [Gmail lookup](admin/services/gmail.md) for company administration.
 - SnapTask for collecting images and files, queueing tasks, and letting agents claim and complete them.
 
 [AGENTS.md](AGENTS.md) defines how agents work in this repository. Keep reusable instructions and source references here; report individual task outcomes in chat. Use existing authentication and keep credentials and private records out of repository documentation.

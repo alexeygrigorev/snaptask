@@ -3,7 +3,7 @@
 This repository is Alexey's workspace for ad hoc administration, with the existing SnapTask application kept alongside it.
 
 - Read `admin/README.md` and `admin/connections.md` before administrative work. Use `admin/documents.md` to locate source documents.
-- For Ramp, Gmail, company Drive, or Slack moderation work, read the matching guide in `admin/services/`. Keep these guides limited to reusable procedures.
+- For Gmail or company Drive work, read the matching guide in `admin/services/`. Keep these guides limited to reusable procedures.
 - Prefer Dapier's CLI/API for connected services. Use Chrome for provider consent and forms when no suitable API exists.
 - Verify which Google account and legal entity each source belongs to. Never substitute a contractor's bank or tax details for Alexey's.
 - Reuse existing authentication and grants. Follow the browser tool's confirmation and handoff rules for new access, contracts, and financial transactions.
@@ -18,7 +18,7 @@ Save information that helps complete a future task:
 - Source-document titles, IDs, links, legal entities, and the fields they establish in `admin/documents.md`. Fetch current financial and tax values from the source before use; do not copy those values into the repository.
 - Explicit enduring user preferences when they apply to future work. A choice or approval for one request is not automatically an enduring preference or authorization for another request.
 
-Keep documentation procedural and current. For example, save how to find a Ramp email, choose the correct account currency, and verify submission; do not save which customer's invoice was handled or the steps taken on that occasion.
+Keep documentation procedural and current. For example, save how to find an email or verify a source document; do not save which customer's invoice was handled or the steps taken on that occasion.
 
 ## What not to save
 
